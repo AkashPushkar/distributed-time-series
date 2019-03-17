@@ -10,3 +10,4 @@ if [ ! -d "./data" ]; then
 fi
 
 # Installs the dependencies
+pipenv install

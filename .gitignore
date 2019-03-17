@@ -2,6 +2,8 @@
 
 # The unzipped data
 data/
+.DS_Store
+.vscode
 
 # Standard Python .gitignore
 
