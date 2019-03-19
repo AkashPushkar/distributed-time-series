@@ -25,6 +25,7 @@ def main():
   X = pd.DataFrame(index=y.index)
   # Split data into train and test set
   X_train, X_test, y_train, y_test = train_test_split(X, y)
+  print(df_ts)
   # We have a pipeline that consists of a feature extraction step with a subsequent Random Forest Classifier 
   ppl = Pipeline([('fresh', RelevantFeatureAugmenter(column_id='id', column_sort='time')),
                   ('clf', RandomForestClassifier())])
