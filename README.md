@@ -13,7 +13,7 @@ The `setup.sh` script will unzip the dataset archive and install the python depe
 
 ```$ ./setup.sh```
 
-## Running
+## Running the simple tsfresh test
 
 ```$ pipenv run python ./src/test.py```
 
@@ -22,4 +22,14 @@ or:
 ```$ pipenv shell```
 
 ```$ python ./src/test.py```
+
+## Running the full tsfresh experiment
+
+```$ pipenv run python ./src/full.py```
+
+or:
+
+```$ pipenv shell```
+
+```$ python ./src/full.py```
 
