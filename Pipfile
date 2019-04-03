@@ -10,6 +10,7 @@ tsfresh = "*"
 matplotlib = "*"
 scikit-learn = "*"
 pandas = "*"
+boruta = "*"
 
 [requires]
 python_version = "3.7"
