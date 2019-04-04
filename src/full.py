@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from glob import glob
+import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -270,6 +271,23 @@ def perform_lda(X_train, y_train, X_test, y_test):
     'ada': accuracy_rate(ada_predicted, actual), 
   }
 
+def perform_unfiltered(X_train, y_train, X_test, y_test):
+  rf = RandomForestClassifier()
+  trained_model = rf.fit(X_train, y_train.squeeze())
+  rfc_predicted = list(map(lambda v: int(v), rf.predict(X_test)))
+  actual = y_test.squeeze().tolist()
+
+  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
+                          algorithm="SAMME",
+                          n_estimators=200)
+  trained_model = bdt.fit(X_train, y_train.squeeze())
+  ada_predicted = list(map(lambda v: int(v), bdt.predict(X_test)))
+
+  return { 
+    'rfc': accuracy_rate(rfc_predicted, actual), 
+    'ada': accuracy_rate(ada_predicted, actual), 
+  }
+
 def perform_dtw_nn(X_train, y_train, X_test, y_test):
 
   m = KnnDtw(n_neighbors=1, max_warping_window=10)
@@ -280,15 +298,25 @@ def perform_dtw_nn(X_train, y_train, X_test, y_test):
 
   return accuracy_rate(predicted, actual) 
 
+# implements majority vote 
+def perform_trivial(X_train, y_train, X_test, y_test):
+  a = y_train.squeeze().values
+  counts = np.bincount(a)
+  majority = np.argmax(counts)
+  predicted = np.full(len(y_test.squeeze().values), majority)
+  actual = y_test.squeeze().tolist()
+  return accuracy_rate(predicted, actual) 
 
 # Process a single test/train fold
 def process_fold(X_train, y_train, X_test, y_test):
 
+  trivial = perform_trivial(X_train, y_train, X_test, y_test)
   dtw = perform_dtw_nn(X_train, y_train, X_test, y_test)
   boruta = perform_boruta(X_train, y_train, X_test, y_test)
   lda = perform_lda(X_train, y_train, X_test, y_test)
   fresh = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
   fresh_a = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
+  unfiltered = perform_unfiltered(X_train, y_train, X_test, y_test)
   
   return {
     'Boruta_ada': boruta.get('ada'),
@@ -302,9 +330,9 @@ def process_fold(X_train, y_train, X_test, y_test):
     'DTW_NN': dtw,
     'FRESH_PCAb_ada': 0,
     'FRESH_PCAb_rfc': 0,
-    'ada': 0,
-    'rfc': 0,
-    'trivial': 0,
+    'ada': unfiltered.get('ada'),
+    'rfc': unfiltered.get('rfc'),
+    'trivial': trivial,
   }
 
 
