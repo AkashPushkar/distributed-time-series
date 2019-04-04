@@ -21,6 +21,7 @@ from tsfresh import extract_features
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from tsfresh.feature_selection.relevance import calculate_relevance_table
 from pca import PCAForPandas
+from dtwnn import KnnDtw
 from boruta import BorutaPy
 
 import csv
@@ -270,17 +271,25 @@ def perform_lda(X_train, y_train, X_test, y_test):
   }
 
 def perform_dtw_nn(X_train, y_train, X_test, y_test):
-  return
+
+  m = KnnDtw(n_neighbors=1, max_warping_window=10)
+  m.fit(X_train.values, y_train.values)
+  predicted, proba = m.predict(X_test.values)
+
+  actual = y_test.squeeze().tolist()
+
+  return accuracy_rate(predicted, actual) 
 
 
 # Process a single test/train fold
 def process_fold(X_train, y_train, X_test, y_test):
 
+  dtw = perform_dtw_nn(X_train, y_train, X_test, y_test)
   boruta = perform_boruta(X_train, y_train, X_test, y_test)
   lda = perform_lda(X_train, y_train, X_test, y_test)
   fresh = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
   fresh_a = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
-
+  
   return {
     'Boruta_ada': boruta.get('ada'),
     'Boruta_rfc': boruta.get('rfc'),
@@ -290,7 +299,7 @@ def process_fold(X_train, y_train, X_test, y_test):
     'FRESH_PCAa_rfc': fresh_a.get('rfc'),
     'FRESH_ada': fresh.get('ada'),
     'FRESH_rfc': fresh.get('rfc'),
-    'DTW_NN': 0,
+    'DTW_NN': dtw,
     'FRESH_PCAb_ada': 0,
     'FRESH_PCAb_rfc': 0,
     'ada': 0,
@@ -317,7 +326,7 @@ def process_data_set(root_path: str):
     y_train, y_test = combined_y.iloc[train_index], combined_y.iloc[test_index]
 
     results.append(process_fold(X_train, y_train, X_test, y_test))
-    
+
   averages = results[0]
   for r in results[:1]:
     for k in r:
