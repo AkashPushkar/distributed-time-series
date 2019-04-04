@@ -24,6 +24,7 @@ from tsfresh.feature_selection.relevance import calculate_relevance_table
 from pca import PCAForPandas
 from dtwnn import KnnDtw
 from boruta import BorutaPy
+import copy 
 
 import csv
 
@@ -321,15 +322,15 @@ def process_fold(X_train, y_train, X_test, y_test):
   return {
     'Boruta_ada': boruta.get('ada'),
     'Boruta_rfc': boruta.get('rfc'),
-    'LDA_ada': lda.get('ada'),
-    'LDA_rfc': lda.get('rfc'),
+    'DTW_NN': dtw,
     'FRESH_PCAa_ada': fresh_a.get('ada'),
     'FRESH_PCAa_rfc': fresh_a.get('rfc'),
-    'FRESH_ada': fresh.get('ada'),
-    'FRESH_rfc': fresh.get('rfc'),
-    'DTW_NN': dtw,
     'FRESH_PCAb_ada': 0,
     'FRESH_PCAb_rfc': 0,
+    'FRESH_ada': fresh.get('ada'),
+    'FRESH_rfc': fresh.get('rfc'),
+    'LDA_ada': lda.get('ada'),
+    'LDA_rfc': lda.get('rfc'),
     'ada': unfiltered.get('ada'),
     'rfc': unfiltered.get('rfc'),
     'trivial': trivial,
@@ -355,14 +356,23 @@ def process_data_set(root_path: str):
 
     results.append(process_fold(X_train, y_train, X_test, y_test))
 
-  averages = results[0]
-  for r in results[:1]:
-    for k in r:
-      averages[k] += r[k]
-  for k in averages:
-    averages[k] /= len(results)
+  averages, std_devs = calc_statistics(results)  
 
-  print(averages)
+  return averages, std_devs
+
+def calc_statistics(results):
+  # convert to numpy array then use 
+  averages = {}
+  std_devs = {}
+  
+  for k in results[0]:
+    values = []
+    for r in results:
+      values.append(r.get(k))
+    averages[k] = np.mean(values)
+    std_devs[k] = np.std(values)
+
+  return averages, std_devs
     
 
 def get_dataset_dirs():
@@ -376,7 +386,7 @@ def main():
   
   dataset_dirs = get_dataset_dirs()
 
-  process_data_set(dataset_dirs[0])
+  averages, std_devs = process_data_set(dataset_dirs[0])
 
   # Uncomment to run against all datasets:
   # for dataset in dataset_dirs:
