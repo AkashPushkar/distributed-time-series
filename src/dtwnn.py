@@ -1,3 +1,7 @@
+# COPIED FROM:
+# https://github.com/markdregan/K-Nearest-Neighbors-with-Dynamic-Time-Warping/blob/master/K_Nearest_Neighbor_Dynamic_Time_Warping.ipynb
+
+
 import sys
 import collections
 import itertools
