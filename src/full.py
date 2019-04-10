@@ -463,7 +463,7 @@ def main():
   for dataset_path in dataset_dirs:
     name  = dataset_path.split('/')[2]
     results[name] = process_data_set(dataset_path)
-    break;
+    break
 
   output_results(results)
 
