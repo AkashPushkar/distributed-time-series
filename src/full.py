@@ -25,10 +25,12 @@ from pca import PCAForPandas
 from dtwnn import KnnDtw
 from boruta import BorutaPy
 import copy 
+import time
 
 import csv
 
 num_folds = 10
+mark = time.time()
 
 # read both the TEST and TRAIN files for a particular
 # dataset into a single set, then partitions the data
@@ -91,7 +93,7 @@ def build_ada():
   return AdaBoostClassifier()
 
 def perform_fresh(X_train, y_train, X_test, y_test):
-
+  log('Processing fresh')
   fresh_train_X, fresh_train_y = raw_to_tsfresh(X_train, y_train)
   fresh_test_X, fresh_test_y = raw_to_tsfresh(X_test, y_test)  
 
@@ -128,7 +130,7 @@ def perform_fresh(X_train, y_train, X_test, y_test):
   
 
 def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
-
+  log('Processing fresh_pca_after')
   fresh_train_X, fresh_train_y = raw_to_tsfresh(X_train, y_train)
   fresh_test_X, fresh_test_y = raw_to_tsfresh(X_test, y_test)  
 
@@ -171,6 +173,8 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
 
 
 def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
+  log('Processing fresh_pca_before')
+  
   fresh_train_X, fresh_train_y = raw_to_tsfresh(X_train, y_train)
   fresh_test_X, fresh_test_y = raw_to_tsfresh(X_test, y_test)  
 
@@ -182,21 +186,17 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   pca_train = PCAForPandas(n_components=0.95, svd_solver='full')
   extracted_train = pca_train.fit_transform(extracted_train)
   
-  extracted_train = extracted_train.reset_index(drop=True)
+  filtered_train = extracted_train.reset_index(drop=True)
   y_train = y_train.reset_index(drop=True)
   
-  R = calculate_relevance_table(extracted_train, y_train.squeeze())
-  filtered_train = filter_features(extracted_train, R)
-
   # Extract features from the test set, but then apply the same relevant
   # features that we used from the train set
   extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
-  extracted_test = pca_train.transform(extracted_test)
-
-  filtered_test = filter_features(extracted_test, R)
+  filtered_test = pca_train.transform(extracted_test)
   
   # Train classifiers on the train set
   clf = build_rfc()
+  
   trained_model = clf.fit(filtered_train, y_train.squeeze())
   rfc_predicted = list(map(lambda v: int(v), clf.predict(filtered_test)))
   
@@ -215,6 +215,7 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   }
 
 def perform_boruta(X_train, y_train, X_test, y_test):
+  log('Processing boruta')
   rf = build_rfc()
   feat_selector = BorutaPy(rf, n_estimators='auto', verbose=2, random_state=0)
   feat_selector.fit(X_train.values, y_train.values)
@@ -238,7 +239,7 @@ def perform_boruta(X_train, y_train, X_test, y_test):
   }
 
 def perform_lda(X_train, y_train, X_test, y_test):
-
+  log('Processing lda')
   X_train = X_train.values
   y_train = y_train.values
   X_test = X_test.values
@@ -269,7 +270,7 @@ def perform_lda(X_train, y_train, X_test, y_test):
   }
 
 def perform_unfiltered(X_train, y_train, X_test, y_test):
-
+  log('Processing unfiltered')
   fresh_train_X, fresh_train_y = raw_to_tsfresh(X_train, y_train)
   fresh_test_X, fresh_test_y = raw_to_tsfresh(X_test, y_test)  
 
@@ -297,7 +298,7 @@ def perform_unfiltered(X_train, y_train, X_test, y_test):
   }
 
 def perform_dtw_nn(X_train, y_train, X_test, y_test):
-
+  log('Processing dtw_nn')
   m = KnnDtw(n_neighbors=1, max_warping_window=10)
   m.fit(X_train.values, y_train.values)
   predicted, proba = m.predict(X_test.values)
@@ -308,6 +309,7 @@ def perform_dtw_nn(X_train, y_train, X_test, y_test):
 
 # implements majority vote 
 def perform_trivial(X_train, y_train, X_test, y_test):
+  log('Processing trivial')
   a = y_train.squeeze().values
   counts = np.bincount(a)
   majority = np.argmax(counts)
@@ -323,7 +325,7 @@ def process_fold(X_train, y_train, X_test, y_test):
   trivial = perform_trivial(X_train, y_train, X_test, y_test)
   dtw = perform_dtw_nn(X_train, y_train, X_test, y_test)
   lda = perform_lda(X_train, y_train, X_test, y_test)  
-  fresh = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
+  fresh = perform_fresh(X_train, y_train, X_test, y_test)
   fresh_a = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
   unfiltered = perform_unfiltered(X_train, y_train, X_test, y_test)
   
@@ -371,12 +373,15 @@ def process_data_set(root_path: str):
   total_acc = 0
 
   results = []
+  fold = 1
 
   for train_index, test_index in skf.split(combined_X, combined_y):
+    log('Processing fold ' + str(fold))
     X_train, X_test = combined_X.iloc[train_index], combined_X.iloc[test_index]
     y_train, y_test = combined_y.iloc[train_index], combined_y.iloc[test_index]
 
     results.append(process_fold(X_train, y_train, X_test, y_test))
+    fold += 1
 
   # For this dataset, averages is a map from the name of the
   # pipeline (e.g. Boruta_rfc) to the average of all folds, 
@@ -411,6 +416,13 @@ def out_to_file(file: str, lines):
   f = open(file, 'w')
   for line in lines:
     f.write(line + '\n')
+  f.close()
+
+
+def log(message):
+  elapsed = str(round(time.time() - mark, 0))
+  f = open('./log.txt', 'w+')
+  f.write('[' + elapsed.rjust(15, '0') + ']  ' + message + '\n')
   f.close()
 
 def output_results(results):
@@ -464,9 +476,11 @@ def main():
 
   for dataset_path in dataset_dirs:
     name  = dataset_path.split('/')[2]
+    log('Processing dataset: ' + name)
     results[name] = process_data_set(dataset_path)
     break
 
+  log('Outputting results')
   output_results(results)
 
 if __name__ == '__main__':
