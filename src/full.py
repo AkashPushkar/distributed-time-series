@@ -414,7 +414,9 @@ def out_to_file(file: str, lines):
 def output_results(results):
   
   header = 'dataset'
-  for k in next(iter(results))[0]:
+  first = results.get(next(iter(results)))[0]
+  print(first)
+  for k in first:
     header = header + '\t' + k
 
   # averages
@@ -423,7 +425,7 @@ def output_results(results):
     line = r
     aves = results.get(r)[0]
     for k in aves:
-      line = line + '\t' + aves.get(k)
+      line = line + '\t' + str(aves.get(k))
     lines.append(line)
   out_to_file('./averages.tsv', lines)
 
@@ -433,7 +435,7 @@ def output_results(results):
     line = r
     aves = results.get(r)[1]
     for k in aves:
-      line = line + '\t' + aves.get(k)
+      line = line + '\t' + str(aves.get(k))
     lines.append(line)
   out_to_file('./std_devs.tsv', lines)
 
@@ -443,7 +445,7 @@ def output_results(results):
     line = r
     aves = results.get(r)[2]
     for k in aves:
-      line = line + '\t' + aves.get(k)
+      line = line + '\t' + str(aves.get(k))
     lines.append(line)
   out_to_file('./counts.tsv', lines)
 
@@ -462,7 +464,7 @@ def main():
     name  = dataset_path.split('/')[2]
     results[name] = process_data_set(dataset_path)
     break;
-  
+
   output_results(results)
 
 if __name__ == '__main__':
