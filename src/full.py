@@ -181,18 +181,19 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   # Perform PCA on the complete set of extracted features
   pca_train = PCAForPandas(n_components=0.95, svd_solver='full')
   extracted_train = pca_train.fit_transform(extracted_train)
-
+  
+  extracted_train = extracted_train.reset_index(drop=True)
+  y_train = y_train.reset_index(drop=True)
+  
   R = calculate_relevance_table(extracted_train, y_train.squeeze())
   filtered_train = filter_features(extracted_train, R)
 
-  
-    
   # Extract features from the test set, but then apply the same relevant
   # features that we used from the train set
   extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
-  filtered_test = filter_features(extracted_test, R)
+  extracted_test = pca_train.transform(extracted_test)
 
-  filtered_test = pca_train.transform(filtered_test)
+  filtered_test = filter_features(extracted_test, R)
   
   # Train classifiers on the train set
   clf = build_rfc()
@@ -317,6 +318,7 @@ def perform_trivial(X_train, y_train, X_test, y_test):
 # Process a single test/train fold
 def process_fold(X_train, y_train, X_test, y_test):
 
+  fresh_b = perform_fresh_pca_before(X_train, y_train, X_test, y_test)
   boruta = perform_boruta(X_train, y_train, X_test, y_test)
   trivial = perform_trivial(X_train, y_train, X_test, y_test)
   dtw = perform_dtw_nn(X_train, y_train, X_test, y_test)
@@ -331,8 +333,8 @@ def process_fold(X_train, y_train, X_test, y_test):
     'DTW_NN': dtw[0],
     'FRESH_PCAa_ada': fresh_a.get('ada'),
     'FRESH_PCAa_rfc': fresh_a.get('rfc'),
-    'FRESH_PCAb_ada': 0,
-    'FRESH_PCAb_rfc': 0,
+    'FRESH_PCAb_ada': fresh_b.get('ada'),
+    'FRESH_PCAb_rfc': fresh_b.get('rfc'),
     'FRESH_ada': fresh.get('ada'),
     'FRESH_rfc': fresh.get('rfc'),
     'LDA_ada': lda.get('ada'),
@@ -415,7 +417,7 @@ def output_results(results):
   
   header = 'dataset'
   first = results.get(next(iter(results)))[0]
-  print(first)
+  
   for k in first:
     header = header + '\t' + k
 
