@@ -28,17 +28,7 @@ import copy
 
 import csv
 
-features = ['maximum', 'minimum', 'mean', 'variance', 'standard_deviation', 'skewness', 'kurtosis', 'length', 'median', 'quantile',
-  'abs_energy', 'augmented_dickey_fuller', 'binned_entropy',
-  'has_variance_larger_than_std', 'is_symmetric_looking', 'mass_quantile', 'number_data_points_above_mean',
-  'number_data_points_above_median', 'number_data_points_below_mean', 'number_data_points_below_median',
-  'arima_model_coefficients', 'continuous_wavelet_transformation_coefficients', 'fast_fourier_transformation_coefficient',
-  'first_index_max', 'first_index_min', 'lagged_autocorrelation', 'large_number_of_peaks', 'last_index_max',
-  'last_index_min', 'longest_strike_above_mean', 'longest_strike_above_median', 'longest_strike_below_mean',
-  'longest_strike_below_median', 'longest_strike_negative', 'longest_strike_positive', 'longest_strike_zero',
-  'mean_absolute_change', 'mean_absolute_change_quantiles', 'mean_autocorrelation', 'mean_second_derivate_central',
-  'number_continous_wavelet_transformation_peaks_of_size', 'number_peaks_of_size', 'spektral_welch_density',
-  'time_reversal_asymmetry_statistic']
+num_folds = 10
 
 # read both the TEST and TRAIN files for a particular
 # dataset into a single set, then partitions the data
@@ -94,6 +84,11 @@ def accuracy_rate(predicted, actual):
       correct += 1
   return correct / len(predicted)
 
+def build_rfc():
+  return RandomForestClassifier()
+
+def build_ada():
+  return AdaBoostClassifier()
 
 def perform_fresh(X_train, y_train, X_test, y_test):
 
@@ -112,22 +107,22 @@ def perform_fresh(X_train, y_train, X_test, y_test):
   filtered_test = filter_features(extracted_test, R)
   
   # Train classifiers on the train set
-  clf = RandomForestClassifier()
+  clf = build_rfc()
   trained_model = clf.fit(filtered_train, y_train.squeeze())
   rfc_predicted = list(map(lambda v: int(v), clf.predict(filtered_test)))
   
   actual = y_test.squeeze().tolist()
 
   # Create and fit an AdaBoosted decision tree
-  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
-                          algorithm="SAMME",
-                          n_estimators=200)
+  bdt = build_ada()
   trained_model = bdt.fit(filtered_train, y_train.squeeze())
   ada_predicted = list(map(lambda v: int(v), bdt.predict(filtered_test)))
 
   return { 
     'rfc':  accuracy_rate(rfc_predicted, actual), 
-    'ada': accuracy_rate(ada_predicted, actual) 
+    'ada': accuracy_rate(ada_predicted, actual),
+    'rfc_count': len(clf.feature_importances_),
+    'ada_count': len(bdt.feature_importances_),
   }
 
   
@@ -156,22 +151,22 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
   filtered_test = pca_train.transform(filtered_test)
   
   # Train classifiers on the train set
-  clf = RandomForestClassifier()
+  clf = build_rfc()
   trained_model = clf.fit(filtered_train, y_train.squeeze())
   rfc_predicted = list(map(lambda v: int(v), clf.predict(filtered_test)))
   
   actual = y_test.squeeze().tolist()
 
   # Create and fit an AdaBoosted decision tree
-  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
-                          algorithm="SAMME",
-                          n_estimators=200)
+  bdt = build_ada()
   trained_model = bdt.fit(filtered_train, y_train.squeeze())
   ada_predicted = list(map(lambda v: int(v), bdt.predict(filtered_test)))
 
   return { 
     'rfc':  accuracy_rate(rfc_predicted, actual), 
-    'ada': accuracy_rate(ada_predicted, actual) 
+    'ada': accuracy_rate(ada_predicted, actual),
+    'rfc_count': len(clf.feature_importances_),
+    'ada_count': len(bdt.feature_importances_),
   }
 
 
@@ -200,26 +195,26 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   filtered_test = pca_train.transform(filtered_test)
   
   # Train classifiers on the train set
-  clf = RandomForestClassifier()
+  clf = build_rfc()
   trained_model = clf.fit(filtered_train, y_train.squeeze())
   rfc_predicted = list(map(lambda v: int(v), clf.predict(filtered_test)))
   
   actual = y_test.squeeze().tolist()
 
   # Create and fit an AdaBoosted decision tree
-  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
-                          algorithm="SAMME",
-                          n_estimators=200)
+  bdt = build_ada()
   trained_model = bdt.fit(filtered_train, y_train.squeeze())
   ada_predicted = list(map(lambda v: int(v), bdt.predict(filtered_test)))
 
   return { 
     'rfc':  accuracy_rate(rfc_predicted, actual), 
-    'ada': accuracy_rate(ada_predicted, actual) 
+    'ada': accuracy_rate(ada_predicted, actual), 
+    'rfc_count': len(clf.feature_importances_),
+    'ada_count': len(bdt.feature_importances_),
   }
 
 def perform_boruta(X_train, y_train, X_test, y_test):
-  rf = RandomForestClassifier()
+  rf = build_rfc()
   feat_selector = BorutaPy(rf, n_estimators='auto', verbose=2, random_state=0)
   feat_selector.fit(X_train.values, y_train.values)
 
@@ -230,15 +225,15 @@ def perform_boruta(X_train, y_train, X_test, y_test):
   rfc_predicted = list(map(lambda v: int(v), rf.predict(X_test_filtered)))
   actual = y_test.squeeze().tolist()
 
-  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
-                          algorithm="SAMME",
-                          n_estimators=200)
+  bdt = build_ada()
   trained_model = bdt.fit(X_filtered, y_train.squeeze().values)
   ada_predicted = list(map(lambda v: int(v), bdt.predict(X_test_filtered)))
-
+  
   return { 
     'rfc': accuracy_rate(rfc_predicted, actual), 
     'ada': accuracy_rate(ada_predicted, actual), 
+    'rfc_count': len(rf.feature_importances_),
+    'ada_count': len(bdt.feature_importances_),
   }
 
 def perform_lda(X_train, y_train, X_test, y_test):
@@ -256,37 +251,48 @@ def perform_lda(X_train, y_train, X_test, y_test):
   X_train = lda.fit_transform(X_train, y_train)  
   X_test = lda.transform(X_test)  
 
-  rf = RandomForestClassifier()
+  rf = build_rfc()
   trained_model = rf.fit(X_train, y_train.squeeze())
   rfc_predicted = list(map(lambda v: int(v), rf.predict(X_test)))
   actual = y_test.squeeze().tolist()
 
-  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
-                          algorithm="SAMME",
-                          n_estimators=200)
+  bdt = build_ada()
   trained_model = bdt.fit(X_train, y_train.squeeze())
   ada_predicted = list(map(lambda v: int(v), bdt.predict(X_test)))
-
+  
   return { 
     'rfc': accuracy_rate(rfc_predicted, actual), 
     'ada': accuracy_rate(ada_predicted, actual), 
+    'rfc_count': len(rf.feature_importances_),
+    'ada_count': len(bdt.feature_importances_),
   }
 
 def perform_unfiltered(X_train, y_train, X_test, y_test):
-  rf = RandomForestClassifier()
-  trained_model = rf.fit(X_train, y_train.squeeze())
-  rfc_predicted = list(map(lambda v: int(v), rf.predict(X_test)))
+
+  fresh_train_X, fresh_train_y = raw_to_tsfresh(X_train, y_train)
+  fresh_test_X, fresh_test_y = raw_to_tsfresh(X_test, y_test)  
+
+  # Run the feature extraction only
+  extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
+  extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
+  
+  # Train classifiers on the train set
+  clf = build_rfc()
+  trained_model = clf.fit(extracted_train, y_train.squeeze())
+  rfc_predicted = list(map(lambda v: int(v), clf.predict(extracted_test)))
+  
   actual = y_test.squeeze().tolist()
 
-  bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth=1),
-                          algorithm="SAMME",
-                          n_estimators=200)
-  trained_model = bdt.fit(X_train, y_train.squeeze())
-  ada_predicted = list(map(lambda v: int(v), bdt.predict(X_test)))
+  # Create and fit an AdaBoosted decision tree
+  bdt = build_ada()
+  trained_model = bdt.fit(extracted_train, y_train.squeeze())
+  ada_predicted = list(map(lambda v: int(v), bdt.predict(extracted_test)))
 
   return { 
-    'rfc': accuracy_rate(rfc_predicted, actual), 
-    'ada': accuracy_rate(ada_predicted, actual), 
+    'rfc':  accuracy_rate(rfc_predicted, actual), 
+    'ada': accuracy_rate(ada_predicted, actual),
+    'rfc_count': len(clf.feature_importances_),
+    'ada_count': len(bdt.feature_importances_),
   }
 
 def perform_dtw_nn(X_train, y_train, X_test, y_test):
@@ -297,7 +303,7 @@ def perform_dtw_nn(X_train, y_train, X_test, y_test):
 
   actual = y_test.squeeze().tolist()
 
-  return accuracy_rate(predicted, actual) 
+  return accuracy_rate(predicted, actual), 0 
 
 # implements majority vote 
 def perform_trivial(X_train, y_train, X_test, y_test):
@@ -311,18 +317,18 @@ def perform_trivial(X_train, y_train, X_test, y_test):
 # Process a single test/train fold
 def process_fold(X_train, y_train, X_test, y_test):
 
+  boruta = perform_boruta(X_train, y_train, X_test, y_test)
   trivial = perform_trivial(X_train, y_train, X_test, y_test)
   dtw = perform_dtw_nn(X_train, y_train, X_test, y_test)
-  boruta = perform_boruta(X_train, y_train, X_test, y_test)
-  lda = perform_lda(X_train, y_train, X_test, y_test)
+  lda = perform_lda(X_train, y_train, X_test, y_test)  
   fresh = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
   fresh_a = perform_fresh_pca_after(X_train, y_train, X_test, y_test)
   unfiltered = perform_unfiltered(X_train, y_train, X_test, y_test)
   
-  return {
+  return ({
     'Boruta_ada': boruta.get('ada'),
     'Boruta_rfc': boruta.get('rfc'),
-    'DTW_NN': dtw,
+    'DTW_NN': dtw[0],
     'FRESH_PCAa_ada': fresh_a.get('ada'),
     'FRESH_PCAa_rfc': fresh_a.get('rfc'),
     'FRESH_PCAb_ada': 0,
@@ -334,7 +340,21 @@ def process_fold(X_train, y_train, X_test, y_test):
     'ada': unfiltered.get('ada'),
     'rfc': unfiltered.get('rfc'),
     'trivial': trivial,
-  }
+  }, {
+    'Boruta_ada': boruta.get('ada_count'),
+    'Boruta_rfc': boruta.get('rfc_count'),
+    'DTW_NN': dtw[1],
+    'FRESH_PCAa_ada': fresh_a.get('ada_count'),
+    'FRESH_PCAa_rfc': fresh_a.get('rfc_count'),
+    'FRESH_PCAb_ada': 0,
+    'FRESH_PCAb_rfc': 0,
+    'FRESH_ada': fresh.get('ada_count'),
+    'FRESH_rfc': fresh.get('rfc_count'),
+    'LDA_ada': lda.get('ada_count'),
+    'LDA_rfc': lda.get('rfc_count'),
+    'ada': unfiltered.get('ada_count'),
+    'rfc': unfiltered.get('rfc_count'),
+  })
 
 
 # Complete processing of one data set.  Does 10-fold cross-validation 
@@ -343,7 +363,7 @@ def process_data_set(root_path: str):
 
   combined_X, combined_y = get_combined_raw_dataset(root_path)
  
-  skf = StratifiedKFold(n_splits=10)
+  skf = StratifiedKFold(n_splits=num_folds)
   skf.get_n_splits(combined_X, combined_y)
 
   total_acc = 0
@@ -356,41 +376,94 @@ def process_data_set(root_path: str):
 
     results.append(process_fold(X_train, y_train, X_test, y_test))
 
-  averages, std_devs = calc_statistics(results)  
+  # For this dataset, averages is a map from the name of the
+  # pipeline (e.g. Boruta_rfc) to the average of all folds, 
+  # similar for std_devs
+  averages, std_devs, counts = calc_statistics(results)  
 
-  return averages, std_devs
+  return averages, std_devs, counts
 
 def calc_statistics(results):
   # convert to numpy array then use 
   averages = {}
   std_devs = {}
+  counts = {}
   
-  for k in results[0]:
+  for k in results[0][0]:
     values = []
-    for r in results:
+    for r in results[0]:
       values.append(r.get(k))
     averages[k] = np.mean(values)
     std_devs[k] = np.std(values)
-
-  return averages, std_devs
     
+  for k in results[1][0]:
+    values = []
+    for r in results[1]:
+      values.append(r.get(k))
+    counts[k] = np.mean(values)
+    
+  return averages, std_devs, counts
+
+
+def out_to_file(file: str, lines):
+  f = open(file, 'w')
+  for line in lines:
+    f.write(line + '\n')
+  f.close()
+
+def output_results(results):
+  
+  header = 'dataset'
+  for k in next(iter(results))[0]:
+    header = header + '\t' + k
+
+  # averages
+  lines = [header]
+  for r in results:
+    line = r
+    aves = results.get(r)[0]
+    for k in aves:
+      line = line + '\t' + aves.get(k)
+    lines.append(line)
+  out_to_file('./averages.tsv', lines)
+
+  # std_devs
+  lines = [header]
+  for r in results:
+    line = r
+    aves = results.get(r)[1]
+    for k in aves:
+      line = line + '\t' + aves.get(k)
+    lines.append(line)
+  out_to_file('./std_devs.tsv', lines)
+
+  # counts
+  lines = [header]
+  for r in results:
+    line = r
+    aves = results.get(r)[2]
+    for k in aves:
+      line = line + '\t' + aves.get(k)
+    lines.append(line)
+  out_to_file('./counts.tsv', lines)
+
 
 def get_dataset_dirs():
   return glob("./data/*/")
 
 def main():
   
-  for f in features:
-    if f in settings:
-      del settings[f]
-  
   dataset_dirs = get_dataset_dirs()
 
-  averages, std_devs = process_data_set(dataset_dirs[0])
+  # map from the dataset name to a tuple of (averages, std_devs, counts)
+  results = {}
 
-  # Uncomment to run against all datasets:
-  # for dataset in dataset_dirs:
-  #   process_data_set(dataset)
+  for dataset_path in dataset_dirs:
+    name  = dataset_path.split('/')[2]
+    results[name] = process_data_set(dataset_path)
+    break;
+  
+  output_results(results)
 
 if __name__ == '__main__':
     main()
