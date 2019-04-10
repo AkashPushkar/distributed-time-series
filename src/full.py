@@ -100,7 +100,7 @@ def perform_fresh(X_train, y_train, X_test, y_test):
   # Run the feature extraction and relevance tests ONLY on the train
   # data set.  
   extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
-  R = calculate_relevance_table(extracted_train, y_train.squeeze())
+  R = calculate_relevance_table(extracted_train, y_train.squeeze(), fdr_level=0.01)
   filtered_train = filter_features(extracted_train, R)
   
   # Extract features from the test set, but then apply the same relevant
@@ -138,7 +138,7 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
   # data set.  
   extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
   
-  R = calculate_relevance_table(extracted_train, y_train.squeeze())
+  R = calculate_relevance_table(extracted_train, y_train.squeeze(), fdr_level=0.01)
   filtered_train = filter_features(extracted_train, R)
 
   # Perform PCA on the filtered set of features
@@ -350,14 +350,15 @@ def process_fold(X_train, y_train, X_test, y_test):
     'DTW_NN': dtw[1],
     'FRESH_PCAa_ada': fresh_a.get('ada_count'),
     'FRESH_PCAa_rfc': fresh_a.get('rfc_count'),
-    'FRESH_PCAb_ada': 0,
-    'FRESH_PCAb_rfc': 0,
+    'FRESH_PCAb_ada': fresh_b.get('ada_count'),
+    'FRESH_PCAb_rfc': fresh_b.get('ada_count'),
     'FRESH_ada': fresh.get('ada_count'),
     'FRESH_rfc': fresh.get('rfc_count'),
     'LDA_ada': lda.get('ada_count'),
     'LDA_rfc': lda.get('rfc_count'),
     'ada': unfiltered.get('ada_count'),
     'rfc': unfiltered.get('rfc_count'),
+    'trivial': 0,
   })
 
 
@@ -398,15 +399,17 @@ def calc_statistics(results):
   
   for k in results[0][0]:
     values = []
-    for r in results[0]:
-      values.append(r.get(k))
+    for r in results:
+      f = r[0]
+      values.append(f.get(k))
     averages[k] = np.mean(values)
     std_devs[k] = np.std(values)
     
-  for k in results[1][0]:
+  for k in results[0][1]:
     values = []
-    for r in results[1]:
-      values.append(r.get(k))
+    for r in results:
+      f = r[1]
+      values.append(f.get(k))
     counts[k] = np.mean(values)
     
   return averages, std_devs, counts
@@ -475,10 +478,13 @@ def main():
   results = {}
 
   for dataset_path in dataset_dirs:
-    name  = dataset_path.split('/')[2]
-    log('Processing dataset: ' + name)
-    results[name] = process_data_set(dataset_path)
-    break
+    try:
+      name  = dataset_path.split('/')[2]
+      log('Processing dataset: ' + name)
+      results[name] = process_data_set(dataset_path)
+    except:
+      log(name + ' ERROR')
+    
 
   log('Outputting results')
   output_results(results)
