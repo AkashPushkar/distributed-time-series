@@ -23,7 +23,7 @@ or:
 
 ```$ python ./src/test.py```
 
-## Running the full tsfresh experiment
+## Running UCR experiment
 
 ```$ pipenv run python ./src/full.py```
 
@@ -32,4 +32,14 @@ or:
 ```$ pipenv shell```
 
 ```$ python ./src/full.py```
+
+## Running timing test experiment
+
+```$ pipenv run python ./src/full.py timing```
+
+or:
+
+```$ pipenv shell```
+
+```$ python ./src/full.py timing```
 
