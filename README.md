@@ -43,3 +43,10 @@ or:
 
 ```$ python ./src/full.py timing```
 
+## Monitoring progress
+
+Both tests take a long time to run.  A long, long time.  To monitor progress while running:
+
+```$ tail -f log.txt```
+
+
