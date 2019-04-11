@@ -4,6 +4,9 @@
 data/
 .DS_Store
 .vscode
+*.tsv
+log.txt
+.idea/
 
 # Standard Python .gitignore
 
