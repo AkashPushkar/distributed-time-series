@@ -30,6 +30,7 @@ import time
 import csv
 
 num_folds = 10
+pd.options.mode.use_inf_as_na = True
 mark = time.time()
 
 # read both the TEST and TRAIN files for a particular
@@ -100,12 +101,14 @@ def perform_fresh(X_train, y_train, X_test, y_test):
   # Run the feature extraction and relevance tests ONLY on the train
   # data set.  
   extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
+  extracted_train = extracted_train.dropna(axis='columns')
   R = calculate_relevance_table(extracted_train, y_train.squeeze(), fdr_level=0.01)
   filtered_train = filter_features(extracted_train, R)
   
   # Extract features from the test set, but then apply the same relevant
   # features that we used from the train set
   extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
+  extracted_test = extracted_test.dropna(axis='columns')
   filtered_test = filter_features(extracted_test, R)
   
   # Train classifiers on the train set
@@ -138,6 +141,11 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
   # data set.  
   extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
   
+  # For some reason, tsfresh is extracting features that contain Nan,
+  # Infinity or None.  This breaks the PCA step.  To avoid this, we
+  # drop columns that contain these values. 
+  extracted_train = extracted_train.dropna(axis='columns')
+
   R = calculate_relevance_table(extracted_train, y_train.squeeze(), fdr_level=0.01)
   filtered_train = filter_features(extracted_train, R)
 
@@ -148,6 +156,8 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
   # Extract features from the test set, but then apply the same relevant
   # features that we used from the train set
   extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
+  extracted_test = extracted_test.dropna(axis='columns')
+
   filtered_test = filter_features(extracted_test, R)
 
   filtered_test = pca_train.transform(filtered_test)
@@ -182,6 +192,11 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   # data set.  
   extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
   
+  # For some reason, tsfresh is extracting features that contain Nan,
+  # Infinity or None.  This breaks the PCA step.  To avoid this, we
+  # drop columns that contain these values. 
+  extracted_train = extracted_train.dropna(axis='columns')
+
   # Perform PCA on the complete set of extracted features
   pca_train = PCAForPandas(n_components=0.95, svd_solver='full')
   extracted_train = pca_train.fit_transform(extracted_train)
@@ -192,6 +207,8 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   # Extract features from the test set, but then apply the same relevant
   # features that we used from the train set
   extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
+  extracted_test = extracted_test.dropna(axis='columns')
+  
   filtered_test = pca_train.transform(extracted_test)
   
   # Train classifiers on the train set
@@ -277,6 +294,9 @@ def perform_unfiltered(X_train, y_train, X_test, y_test):
   # Run the feature extraction only
   extracted_train = extract_features(fresh_train_X, column_id='id', column_value='value')
   extracted_test = extract_features(fresh_test_X, column_id='id', column_value='value')
+
+  extracted_train = extracted_train.dropna(axis='columns')
+  extracted_test = extracted_test.dropna(axis='columns')
   
   # Train classifiers on the train set
   clf = build_rfc()
@@ -310,8 +330,22 @@ def perform_dtw_nn(X_train, y_train, X_test, y_test):
 # implements majority vote 
 def perform_trivial(X_train, y_train, X_test, y_test):
   log('Processing trivial')
-  a = y_train.squeeze().values
-  counts = np.bincount(a)
+  
+  counts = {}
+  for v in y_train:
+    if v not in counts:
+      counts[v] = 1
+    else:
+      counts[v] = counts.get(v) + 1
+
+  m = -1
+  majority = None
+  for k in counts:
+    v = counts.get(k)
+    if (v > m):
+      m = v
+      majority = k
+
   majority = np.argmax(counts)
   predicted = np.full(len(y_test.squeeze().values), majority)
   actual = y_test.squeeze().tolist()
@@ -470,12 +504,86 @@ def output_results(results):
 def get_dataset_dirs():
   return glob("./data/*/")
 
+# builds a (X, y) DataFrame pair of a random time series with 
+# a binary label and specified number of samples and length
+def build_random_ts(num_samples, length_of_ts):
+  data = {}
+
+  labels = []
+  for s in range (0, num_samples):
+    labels.append(np.random.choice([1, 2]))
+  data['y'] = labels
+
+  for col in range(0, length_of_ts):
+    key = 'feature_' + str(col + 1)
+    values = []
+    for s in range (0, num_samples):
+      values.append(np.random.normal())
+    data[key] = values
+  
+  df = pd.DataFrame.from_dict(data)
+  X = df.iloc[:,1:]
+  y = df.iloc[:,:1]
+
+  return (X, y)
+
+
+def perform_timing_test():
+
+  tests = [
+    ('Boruta', perform_boruta),
+    ('DTW_NN', perform_dtw_nn),
+    ('FRESH', perform_fresh),
+    ('FRESH_PCAa', perform_fresh_pca_after),
+    ('FRESH_PCAb', perform_fresh_pca_before),
+    ('LDA', perform_lda),
+    ('Full_X', perform_unfiltered)
+  ]
+
+  # keep the number of samples constant
+  constant_samples_results = {}
+  for length in [100, 1000, 2000]:
+    X, y = build_random_ts(1000, length)
+
+    skf = StratifiedKFold(n_splits=10)
+    skf.get_n_splits(X, y)
+
+    train_index, test_index = next(skf.split(X, y))
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
+    for test in tests:
+      mark = time.time()
+      test[1](X_train, y_train, X_test, y_test)
+      constant_samples_results[test[0]] = time.time() - mark
+
+  # keep the length constant
+  constant_length_results = {}
+  for num_samples in [100, 1000, 2000]:
+    X, y = build_random_ts(num_samples, 1000)
+
+    skf = StratifiedKFold(n_splits=10)
+    skf.get_n_splits(X, y)
+
+    train_index, test_index = next(skf.split(X, y))
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
+    for test in tests:
+      mark = time.time()
+      test[1](X_train, y_train, X_test, y_test)
+      constant_length_results[test[0]] = time.time() - mark
+
+  return constant_samples_results, constant_length_results
+
 def main():
   
   dataset_dirs = get_dataset_dirs()
 
   # map from the dataset name to a tuple of (averages, std_devs, counts)
   results = {}
+
+  #just_one = [dataset_dirs[8]]
 
   for dataset_path in dataset_dirs:
     try:
