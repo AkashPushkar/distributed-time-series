@@ -28,6 +28,11 @@ import time
 import sys
 import csv
 
+import matplotlib.colors as mcolors
+
+
+
+
 # adjust for testing, but the full run requires 10 stratified sample folds
 num_folds = 10
 
@@ -661,6 +666,111 @@ def perform_timing_test():
       constant_length_results.get(test[0]).append(time.time() - mark)
       capture_timing_result('./fixed_length.tsv', constant_length_results)
 
+
+def load_and_plot(filename, out, title, colormap, vmax):
+  df = pd.read_csv(filename, delimiter='\t')
+
+  datasets = df['dataset'].tolist()
+  algorithms = list(df.columns.values)[1:]
+  data = df.iloc[:,1:].values
+
+  create_heatmap(out, data, datasets, algorithms, title, colormap, vmax)
+  
+
+
+def make_colormap(seq):
+    """Return a LinearSegmentedColormap
+    seq: a sequence of floats and RGB-tuples. The floats should be increasing
+    and in the interval (0,1).
+    """
+    seq = [(None,) * 3, 0.0] + list(seq) + [1.0, (None,) * 3]
+    cdict = {'red': [], 'green': [], 'blue': []}
+    for i, item in enumerate(seq):
+        if isinstance(item, float):
+            r1, g1, b1 = seq[i - 1]
+            r2, g2, b2 = seq[i + 1]
+            cdict['red'].append([item, r1, r2])
+            cdict['green'].append([item, g1, g2])
+            cdict['blue'].append([item, b1, b2])
+    return mcolors.LinearSegmentedColormap('CustomMap', cdict)
+
+
+def create_heatmap(out, data, row_labels, col_labels, title, colormap, vmax, ax=None,
+            cbar_kw={}, cbarlabel="", **kwargs):
+    """
+    Create a heatmap from a numpy array and two lists of labels.
+
+    Arguments:
+        data       : A 2D numpy array of shape (N,M)
+        row_labels : A list or array of length N with the labels
+                     for the rows
+        col_labels : A list or array of length M with the labels
+                     for the columns
+    Optional arguments:
+        ax         : A matplotlib.axes.Axes instance to which the heatmap
+                     is plotted. If not provided, use current axes or
+                     create a new one.
+        cbar_kw    : A dictionary with arguments to
+                     :meth:`matplotlib.Figure.colorbar`.
+        cbarlabel  : The label for the colorbar
+    All other arguments are directly passed on to the imshow call.
+    """
+
+    
+
+    if not ax:
+        ax = plt.gca()
+
+    # Plot the heatmap
+    im = ax.imshow(data, cmap=colormap, vmin=0, vmax=vmax, **kwargs)
+
+    # Create colorbar
+    cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
+    cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
+    plt.gcf().subplots_adjust(bottom=0.25)
+
+    # We want to show all ticks...
+    ax.set_xticks(np.arange(data.shape[1]))
+    ax.set_yticks(np.arange(data.shape[0]))
+    # ... and label them with the respective list entries.
+    ax.set_xticklabels(col_labels)
+    ax.set_yticklabels(row_labels)
+    ax.tick_params(axis='both', which='major', labelsize=6)
+    ax.tick_params(axis='both', which='minor', labelsize=6)
+
+    ax.tick_params(top=False, bottom=True,
+                   labeltop=False, labelbottom=True)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="right")
+    plt.title(title)
+
+    # Turn spines off and create white grid.
+    #for edge, spine in ax.spines.items():
+    #    spine.set_visible(False)
+
+    ax.set_xticks(np.arange(data.shape[1]+1)-.6, minor=True)
+    ax.set_yticks(np.arange(data.shape[0]+1)-.6, minor=True)
+    ax.grid(which="minor", color="k", linestyle='-', linewidth=0.5)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    f = plt.savefig(out)
+    plt.clf()
+
+    return im, cbar
+
+
+def generate_heatmaps():
+  c = mcolors.ColorConverter().to_rgb
+  ryg = make_colormap(
+      [c('red'), c('yellow'), 0.6, c('yellow'), c('green'), 0.85, c('green')])
+  load_and_plot('./results/averages.tsv', './results/averages.png', 'Average Accuracy', ryg, 1.0)
+
+  gyr = make_colormap(
+      [c('green'), c('yellow'), 0.7, c('yellow'), c('red'), 0.9, c('red')])
+  load_and_plot('./results/std_devs.tsv', './results/std_devs.png', 'Average StdDev', gyr, 0.1)
+
+
 # Run the UCR test.  A 10-fold, cross-validated test of all our
 # algorithms against 31 datasets from the UCR archive
 def run_ucr_test():
@@ -687,6 +797,8 @@ def run_ucr_test():
 def main():
   if (len(sys.argv) == 2 and sys.argv[1] == 'timing'):
     perform_timing_test()
+  elif (len(sys.argv) == 2 and sys.argv[1] == 'plots'):
+    generate_heatmaps()
   else:
     run_ucr_test()
 
