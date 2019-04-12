@@ -43,6 +43,18 @@ or:
 
 ```$ python ./src/full.py timing```
 
+
+## Generating the heatmaps and box plot.
+
+
+```$ pipenv run python ./src/full.py plots```
+
+or:
+
+```$ pipenv shell```
+
+```$ python ./src/full.py plots```
+
 ## Monitoring progress
 
 Both tests take a long time to run.  A long, long time.  To monitor progress while running:
