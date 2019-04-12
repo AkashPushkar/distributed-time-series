@@ -695,6 +695,36 @@ def make_colormap(seq):
     return mcolors.LinearSegmentedColormap('CustomMap', cdict)
 
 
+def create_boxplot(data, algorithms):
+  fig = plt.figure(1, figsize=(9, 6))
+
+  # Create an axes instance
+  ax = fig.add_subplot(111)
+  
+
+  # rectangular box plot
+  bplot1 = ax.boxplot(data,
+                          vert=True,  # vertical box alignment
+                          patch_artist=True,  # fill with color
+                          labels=algorithms)  # will be used to label x-ticks
+  ax.set_title('Used Features')
+
+  # fill with colors
+  colors = ['pink', 'orange', 'darkgoldenrod', 'olive', 'green', 'lightseagreen', 'seagreen', 'lightgreen', 'deepskyblue', 'orchid', 'hotpink', 'palevioletred']
+
+  for patch, color in zip(bplot1['boxes'], colors):
+      patch.set_facecolor(color)
+
+  # adding horizontal grid lines
+
+  ax.yaxis.grid(True)
+  plt.setp(ax.get_xticklabels(), rotation=90, ha="right")
+  ax.set_xlabel('Algorithm')
+  ax.set_ylabel('Used feature counts')
+
+  plt.savefig('./results/counts.png')
+
+
 def create_heatmap(out, data, row_labels, col_labels, title, colormap, vmax, ax=None,
             cbar_kw={}, cbarlabel="", **kwargs):
     """
@@ -760,6 +790,16 @@ def create_heatmap(out, data, row_labels, col_labels, title, colormap, vmax, ax=
     return im, cbar
 
 
+def generate_boxplot():
+  df = pd.read_csv('./results/counts.tsv', delimiter='\t')
+
+  datasets = df['dataset'].tolist()
+  algorithms = list(df.columns.values)[1:]
+  data = df.iloc[:,1:].values
+
+  create_boxplot(data, algorithms)
+
+
 def generate_heatmaps():
   c = mcolors.ColorConverter().to_rgb
   ryg = make_colormap(
@@ -799,6 +839,7 @@ def main():
     perform_timing_test()
   elif (len(sys.argv) == 2 and sys.argv[1] == 'plots'):
     generate_heatmaps()
+    generate_boxplot()
   else:
     run_ucr_test()
 
