@@ -156,8 +156,8 @@ def perform_fresh(X_train, y_train, X_test, y_test):
   return {
     'rfc':  accuracy_rate(rfc_predicted, actual),
     'ada': accuracy_rate(ada_predicted, actual),
-    'rfc_count': len(clf.feature_importances_),
-    'ada_count': len(bdt.feature_importances_),
+    'rfc_count': len(clf.estimators_),
+    'ada_count': len(bdt.estimators_),
   }
 
 # Safely executes a feature-based fold run, catching any
@@ -223,8 +223,8 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
   return {
     'rfc':  accuracy_rate(rfc_predicted, actual),
     'ada': accuracy_rate(ada_predicted, actual),
-    'rfc_count': len(clf.feature_importances_),
-    'ada_count': len(bdt.feature_importances_),
+    'rfc_count': len(clf.estimators_),
+    'ada_count': len(bdt.estimators_),
   }
 
 # FRESH variant that runs PCA before the filtering step
@@ -273,8 +273,8 @@ def perform_fresh_pca_before(X_train, y_train, X_test, y_test):
   return {
     'rfc':  accuracy_rate(rfc_predicted, actual),
     'ada': accuracy_rate(ada_predicted, actual),
-    'rfc_count': len(clf.feature_importances_),
-    'ada_count': len(bdt.feature_importances_),
+    'rfc_count': len(clf.estimators_),
+    'ada_count': len(bdt.estimators_),
   }
 
 # The Borunta based feature-extraction algorithm
@@ -298,8 +298,8 @@ def perform_boruta(X_train, y_train, X_test, y_test):
   return {
     'rfc': accuracy_rate(rfc_predicted, actual),
     'ada': accuracy_rate(ada_predicted, actual),
-    'rfc_count': len(rf.feature_importances_),
-    'ada_count': len(bdt.feature_importances_),
+    'rfc_count': len(rf.estimators_),
+    'ada_count': len(bdt.estimators_),
   }
 
 # LDA 
@@ -330,8 +330,8 @@ def perform_lda(X_train, y_train, X_test, y_test):
   return {
     'rfc': accuracy_rate(rfc_predicted, actual),
     'ada': accuracy_rate(ada_predicted, actual),
-    'rfc_count': len(rf.feature_importances_),
-    'ada_count': len(bdt.feature_importances_),
+    'rfc_count': len(rf.estimators_),
+    'ada_count': len(bdt.estimators_),
   }
 
 # Take the extracted features from FRESH and use them unfiltered
@@ -364,8 +364,8 @@ def perform_unfiltered(X_train, y_train, X_test, y_test):
   return {
     'rfc':  accuracy_rate(rfc_predicted, actual),
     'ada': accuracy_rate(ada_predicted, actual),
-    'rfc_count': len(clf.feature_importances_),
-    'ada_count': len(bdt.feature_importances_),
+    'rfc_count': len(clf.estimators_),
+    'ada_count': len(bdt.estimators_),
   }
 
 # Nearest Neighbors with Dynamic Time Warping
