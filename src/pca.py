@@ -1,3 +1,6 @@
+# Adapted from:
+# https://github.com/blue-yonder/tsfresh/blob/master/notebooks/perform-PCA-on-extracted-features.ipynb
+
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import pandas as pd

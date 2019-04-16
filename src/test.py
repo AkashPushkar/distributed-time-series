@@ -1,3 +1,5 @@
+# Adapted from:
+# https://github.com/blue-yonder/tsfresh/blob/master/notebooks/basic_pipeline_example.ipynb
 
 from tsfresh.examples.robot_execution_failures import download_robot_execution_failures, \
     load_robot_execution_failures
