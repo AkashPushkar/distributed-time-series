@@ -808,7 +808,15 @@ def generate_heatmaps():
 
   gyr = make_colormap(
       [c('green'), c('yellow'), 0.7, c('yellow'), c('red'), 0.9, c('red')])
+
+
   load_and_plot('./results/std_devs.tsv', './results/std_devs.png', 'Average StdDev', gyr, 0.1)
+
+
+  bgy = make_colormap(
+      [c('black'), c('green'), 0.7, c('green'), c('yellow'), 0.9, c('yellow')])
+  
+  load_and_plot('./results/averages-diff.tsv', './results/averages-diff.png', 'Absolute Difference in Averages', bgy, .7)
 
 
 # Run the UCR test.  A 10-fold, cross-validated test of all our
