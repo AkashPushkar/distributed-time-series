@@ -190,7 +190,7 @@ def perform_fresh_pca_after(X_train, y_train, X_test, y_test):
   filtered_train = None
   # execute at different fdr levels to try to make FRESH more robust
   for fdr in [0.05, 0.01, 0.005, 0.001]:
-      R = calculate_relevance_table(extracted_train, y_train.squeeze(), fdr_level=0.01)
+      R = calculate_relevance_table(extracted_train, y_train.squeeze(), fdr_level=fdr)
       filtered_train = filter_features(extracted_train, R)
       if (filtered_train.shape[1] > 0):
           break
